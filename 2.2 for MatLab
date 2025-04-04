@@ -1,0 +1,180 @@
+# close
+# all
+# clear;
+#
+# x_max = 6.0;
+# y_max = 6.0;
+# z_max = 100;
+# wave_len = 10.6 * 10 ^ (-6);
+# a_0 = 0.02;
+# z_d = 2 * pi / wave_len * a_0 ^ 2;
+# z_max = z_max / z_d;
+# n_x = 2000;
+# n_y = 2000;
+# n_z = 100;
+# h_x = x_max * 2 / n_x;
+# h_y = y_max * 2 / n_y;
+# h_z = z_max / n_z;
+# t_max = 1;
+# % f = z_max;
+#
+# alp = 2.9 * 10 ^ (-4);
+# density = 1.204;
+# velocity = 0.5;
+# c_p = 1006;
+# n_0 = 1.00029;
+# dn_dt = -10 ^ (-6);
+#
+# r_v = 2 * (2 * pi / wave_len) ^ 2 / n_0 * dn_dt * alp * a_0 ^ 3 / velocity / density / c_p;
+#
+# N_f = 0.2;
+# r = 1 / sqrt(z_max);
+# % q = 2 * r ^ 2 / (r - 1) * (1 - log(r) / (r - 1));
+# I_0 = 2 * N_f / n_0 / (abs(r_v) * z_max ^ 2);
+#
+# R_v = r_v * I_0;
+# delta = 0.0;
+#
+# font = 22;
+#
+# x = -x_max:h_x: x_max;
+# y = -y_max:h_y: y_max;
+# z = 0:h_z: z_max;
+#
+# h_t = h_x;
+# t = 0:h_t: t_max;
+#
+# x_c = 0.0. * t;
+# y_c = 0.0. * t;
+# r_x_eff = x_c;
+# % r_x_eff(1) = 1;
+# r_y_eff = x_c;
+# % r_y_eff(1) = 1;
+#
+# E = zeros(length(x), length(y));
+# % E(:,:)=exp(-0.5. * (x. ^ 2 + y. ^ 2.').*(1-1i/f));
+# E(:,:) = exp(-0.5. * (x. ^ 2 + y. ^ 2.'));
+# E1(:,:) = E. * 0.0;
+#
+# Intense = zeros(length(x), length(y));
+# Intense_end = zeros(length(x), length(y), length(t));
+# Intense_max = 0 * t;
+# Temp = zeros(length(x), length(y), length(z));
+#
+# alpha_x = x(1:n_x).*0.0;
+# beta_x = x(1:n_x).*0.0;
+# alpha_y = y(1:n_y).*0.0.
+# ';
+# beta_y = y(1:n_y).*0.0.
+# ';
+#
+# bb = -2.0 * (2.0 * 1i * h_x ^ 2 / (h_z) + 1);
+#
+# for it=1:length(t)
+# E1(:,:)=E. * 0.0;
+# for k = 2:n_z + 1
+# for j=1:n_y + 1
+# alpha_x = alpha_x. * 0.0;
+# beta_x = beta_x. * 0.0;
+# alpha_x(1) = 1.0;
+# beta_x(1) = 0.0;
+# ff_x = -1.0. * E(3:n_x + 1, j)-2.0. * (2.0 * 1i * h_x ^ 2 / (h_z) - 1).*E(2: n_x, j)-E(1: n_x - 1, j);
+# for i=2:n_x
+# alpha_x(i) = -1.0 / (bb + alpha_x(i - 1));
+# beta_x(i) = (ff_x(i - 1) - beta_x(i - 1)) / (bb + alpha_x(i - 1));
+# end
+# E1(n_x + 1, j) = beta_x(n_x) / (1.0 - alpha_x(n_x));
+# for i = n_x:-1: 1
+# E1(i, j) = alpha_x(i) * E1(i + 1, j) + beta_x(i);
+# end
+# end
+# E = E1;
+# for i = 1:n_x + 1
+# alpha_y = alpha_y. * 0.0;
+# beta_y = beta_y. * 0.0;
+# alpha_y(1) = 1.0;
+# beta_y(1) = 0.0;
+# ff_y = -1.0. * E(i, 3:n_y + 1)-2.0. * (2.0 * 1i * h_y ^ 2 / (h_z) - 1).*E(i, 2: n_y)-E(i, 1: n_y - 1);
+# for j=2:n_y
+# alpha_y(j) = -1.0 / (bb + alpha_y(j - 1));
+# beta_y(j) = (ff_y(j - 1) - beta_y(j - 1)) / (bb + alpha_y(j - 1));
+# end
+# E1(i, n_y + 1) = beta_y(n_y) / (1.0 - alpha_y(n_y));
+# for j = n_y:-1: 1
+# E1(i, j) = alpha_y(j) * E1(i, j + 1) + beta_y(j);
+# end
+# end
+# E = E1. * exp(-1
+# i * 0.5 * R_v. * Temp(:,:, k).*h_z - delta * 0.5 * h_z);
+#
+# Intense = abs(E). ^ 2;
+#
+# for j = 1:n_y + 1
+# for i = 1:n_x
+# Temp(i + 1, j, k) = Temp(i, j, k) + h_t * Intense(i, j);
+# end
+# end
+# if (mod(k, 10) == 0)
+# disp(k);
+# end
+# end
+# Intense_end(:,:, it)=Intense;
+# Intense_max(it) = max(Intense, [], "all");
+# for j = 1:n_y + 1
+# x_c(it) = x_c(it) + dot(Intense(:, j), x);
+# end
+# x_c(it) = x_c(it) / sum(Intense, 'all');
+#
+# for i = 1:n_x + 1
+# y_c(it) = y_c(it) + dot(Intense(i,:), y);
+# end
+# y_c(it) = y_c(it) / sum(Intense, 'all');
+#
+# x_cc = (x - x_c(it)). ^ 2;
+# for j = 1:n_y + 1
+# r_x_eff(it) = r_x_eff(it) + dot(Intense(:, j), x_cc);
+# end
+# r_x_eff(it) = r_x_eff(it) / sum(Intense, 'all');
+#
+# y_cc = (y - y_c(it)). ^ 2;
+# for i = 1:n_x + 1
+# r_y_eff(it) = r_y_eff(it) + dot(Intense(i,:), y_cc);
+# end
+# r_y_eff(it) = r_y_eff(it) / sum(Intense, 'all');
+#
+# it_end = it;
+#
+# if it > 2
+# if (abs(x_c(it) - x_c(it - 1)) <= 10 ^ (-5)) & & (abs(y_c(it) - y_c(it - 1)) <= 10 ^ (-5))
+# if (abs(r_x_eff(it) - r_x_eff(it - 1)) <= 10 ^ (-5)) & & (abs(r_y_eff(it) - r_y_eff(it - 1)) <= 10 ^ (-5))
+# if (abs(Intense_max(it) - Intense_max(it - 1)) <= 10 ^ (-5))
+#     break;
+# end
+# end
+# end
+# end
+#
+# E(:,:)=exp(-0.5. * (x. ^ 2 + y. ^ 2.'));
+#
+# disp(x_c(it))
+#        % disp(x_c(it - 1));
+# end
+#
+# figure(2);
+# set(gca, 'FontSize', font - 2, 'FontName', 'TimesNewRoman CYR');
+# for k = 1:it_end
+# surf(y, x, Intense_end(:,:, k), 'LineStyle', 'none');
+# xlabel('y', 'FontSize', font, 'FontName', 'TimesNewRoman CYR');
+# ylabel('x', 'FontSize', font, 'FontName', 'TimesNewRoman CYR');
+# zlabel('Intensity', 'FontSize', font, 'FontName', 'TimesNewRoman CYR');
+# c = colorbar;
+# c.Label.String = 'Intensity';
+# view(90, 90);
+# pause(0.01);
+# end
+#
+# figure(3);
+# set(gca, 'FontSize', font - 2, 'FontName', 'TimesNewRoman CYR');
+# plot(t(1: it_end), Intense_max(1: it_end));
+# xlabel('t', 'FontSize', font, 'FontName', 'TimesNewRoman CYR');
+# ylabel('I_{max}', 'FontSize', font, 'FontName', 'TimesNewRoman CYR');
