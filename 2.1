@@ -1,0 +1,117 @@
+# код Егора
+
+import numpy as np
+import matplotlib.pyplot as plt
+import time as tm
+
+N = 2  # 2, 8
+v = 0.5
+a0 = 2e-2
+n0 = 1.00029
+delta = 0
+Z_max = 100
+lambd = 10.6e-6
+k0 = 2 * np.pi / lambd
+
+Nz = 10
+z_max = Z_max / k0 / a0 ** 2
+dz = z_max / (Nz - 1)
+z = np.linspace(0, z_max, Nz)
+Rv = 2 * N / n0 / z_max**2
+
+Nl = 100
+l_max = 10
+dl = 2 * l_max / (Nl - 1)
+l = np.linspace(-l_max, l_max, Nl)
+
+Nt = 10
+dt = dl
+t_max = dt * Nt
+t = np.linspace(0, t_max, Nt)
+
+x, y = np.meshgrid(l, l)
+E0 = np.exp(- (x ** 2 + y ** 2) / 2) + 0j
+
+T = np.zeros([Nl, Nl, Nz])
+
+S = dl ** 2 / dz
+B = -2 * (1 + 2j * S)
+B1 = 2 * (1 - 2j * S)
+alpha = 0 * E0[:, 0]
+beta = 0 * E0
+
+
+def running_2D_xy(E):
+    ret = 0 * E
+    # Прогонка по x
+    beta[0, :] *= 0
+    alpha[0] = 1
+    for i in range(0, Nl - 2):
+        F = -E[i, :] + B1 * E[i + 1, :] - E[i + 2, :]
+        alpha[i + 1] = -1 / (B + alpha[i])
+        beta[i + 1, :] = (beta[i, :] - F) * alpha[i + 1]
+    ret[Nl - 1, :] = beta[Nl - 2, :] / (1 - alpha[Nl - 2])
+    # ret[Nr - 1, :] *= 0
+    for i in range(Nl - 1, 0, -1):
+        ret[i - 1, :] = alpha[i - 1] * ret[i, :] + beta[i - 1, :]
+    # Прогонка по y
+    beta[:, 0] *= 0
+    for i in range(0, Nl - 2):
+        F = -ret[:, i] + B1 * ret[:, i + 1] - ret[:, i + 2]
+        beta[:, i + 1] = (beta[:, i] - F) * alpha[i + 1]
+    ret[:, Nl - 1] = beta[:, Nl - 2] / (1 - alpha[Nl - 2])
+    # ret[:, Nr - 1] *= 0
+    for i in range(Nl - 1, 0, -1):
+        ret[:, i - 1] = alpha[i - 1] * ret[:, i] + beta[:, i - 1]
+    return ret
+
+
+def step(e0, T):
+    ret = e0
+    for i in range(1, Nz):
+        ret = running_2D_xy(ret)
+        ret = ret * np.exp(-(1j * Rv * T[:, :, i] + delta) * dz / 2)
+        T[1:Nl, :, i] = T[0:Nl - 1, :, i] + dt * abs(ret[1:Nl, :]) ** 2
+    return ret
+
+
+start_time = tm.time()
+E = E0
+progres = 0
+for i in range(1, Nt):
+    E = step(E, T)
+    # if np.floor(i/(Nt - 1)*100) > progres:
+    #     progres += 1
+    #     print(progres, '%')
+    spend_time = tm.time() - start_time
+    hh = int(np.floor(spend_time/3600))
+    mm = int(np.floor(spend_time/60 - hh * 60))
+    ss = spend_time - mm * 60 - hh * 3600
+    print(i, ' running time: ', "{}".format(hh).zfill(2), ':', "{}".format(mm).zfill(2), ':', ss)
+end_time = tm.time()
+
+# print('running time: ', end_time - start_time)
+
+Intensity = abs(E) ** 2
+
+
+def plotColor(z, name):
+    plt.imshow(z, cmap='viridis', interpolation='nearest', extent=(-l_max, l_max, -l_max, l_max))
+    plt.colorbar()
+    plt.title(name)
+    plt.xlabel('x')
+    plt.ylabel('y')
+
+
+lw = 0.5
+plt.figure(1)
+plotColor(Intensity, 'Ветровая рефракция')
+plt.plot([0, 0], [-l_max, l_max], color='black', linewidth=lw)
+plt.plot([-l_max, l_max], [0, 0], color='black', linewidth=lw)
+
+plt.figure(2)
+plotColor(abs(E0) ** 2, 'Ветровая рефракция')
+plt.plot([0, 0],[-l_max, l_max], color='black', linewidth=lw)
+plt.plot([-l_max, l_max],[0, 0], color='black', linewidth=lw)
+
+plt.show()
