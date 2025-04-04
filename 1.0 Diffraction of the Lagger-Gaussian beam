@@ -1,0 +1,294 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from skimage import measure
+
+# В безразмерных координатах
+
+
+import time
+start_time = time.time()
+
+
+def LG(x, y, m):
+    r = x ** 2 + y ** 2
+    return np.exp(- r / 2) * (r ** (0.5 * m)) * np.exp(1j * m * (np.arctan2(y, x) + np.pi))
+
+
+def find_point(contour, coords):
+    dir = contour - coords
+    dist = np.sum(dir ** 2, axis=1)
+    return contour[np.argmin(dist)]
+
+def find_width_dir(contour, coords):
+    # p_out = min(contour[0], key=lambda r: np.linalg.norm(r - max_coords))
+    # p_in = min(contour[1], key=lambda r: np.linalg.norm(r - max_coords))
+
+    if len(contour) == 1:
+        p_out = find_point(contour[0], coords)
+        p_in = np.mean(contour[0])
+    else:
+        p_out = find_point(contour[0], coords)
+        p_in = find_point(contour[1], coords)
+    return np.linalg.norm(p_out - p_in)
+
+def gen_dir(num_directions):
+    dir = []
+    for i in range(num_directions):
+        angle = i * 2 * np.pi / num_directions
+        direct = (np.cos(angle), np.sin(angle))
+        dir.append(direct)
+    return dir
+
+def find_width_dir_n(contour, directions):
+    widths = []
+    for dir in directions:
+        width = find_width_dir(contour, dir)
+        widths.append(width)
+    return np.array(widths)
+
+def area(contours):
+    S = 0
+    r_ = []
+    for contour in contours:
+        # contour = contour.tolist()
+        r = np.mean(find_width_dir_n([contour], directions)) * hx
+        r_.append(r)
+    print(r_)
+    num_ = len(r_)
+    if num_ == 2:
+        S1 = np.pi * r_[0] ** 2
+        S2 = np.pi * r_[1] ** 2
+        S = S1 - S2
+    elif num_ == 1:
+        S = np.pi * r_[0] ** 2
+    return S
+
+# ---------------------------------------------------------
+# N = 256 - 4.506866216659546 секунд
+# 512 -  32.33447885513306 секунд
+# 512 -  30.317896127700806 секунды
+
+N = 1024
+R = 5 #a0 =1
+m = 0
+
+Nz = 64
+z_dif = 1
+zn = 1
+z1 = zn * z_dif
+# --------- Проверка для 2 задания
+L = 10.6e-6
+k = 2 * np.pi / L
+a0 = 0.02
+z_dif = k * a0 ** 2
+z1 = 100 / z_dif
+# -----------
+
+hz = z1 / Nz
+hx = 2 * R / N
+
+x, y = np.meshgrid(np.arange(-R, R, hx), np.arange(-R, R, hx))
+Z = np.arange(0, z1, hz)
+kx, ky = np.meshgrid(np.arange(-N//2, N//2), np.arange(-N//2, N//2))
+
+
+E = np.zeros((N, N), dtype=complex)
+max_I = np.zeros(Nz)
+fw = np.zeros(Nz)
+P = np.zeros(Nz)
+
+num_dir = 32
+directions = gen_dir(num_dir)
+
+
+
+E += LG(x, y, m)
+I0 = abs(E) ** 2
+
+# P[0] = np.sum(I0)
+# print(0, P[0])
+
+
+# ----------------- Определение параметров
+max_I[0] = np.max(I0)
+contours = measure.find_contours(I0, np.exp(-1) * max_I[0])
+
+# В направлении максимума
+# max_x, max_y = np.unravel_index(np.argmax(I0), (N, N))
+# max_xy = np.array([max_x, max_y])
+# fw[0] = find_width_dir(contours, max_xy) * hx
+
+# Среднее по направлениям
+fw[0] = np.mean(find_width_dir_n(contours, directions)) * hx
+
+
+# Площадь
+S0 = area(contours)
+
+
+# ----------------- Вывод контуров
+rows, cols = I0.shape
+contour0 = np.zeros((rows, cols))
+
+for contour in contours:
+    contour = np.round(contour).astype(int)
+    contour0[contour[:, 0], contour[:, 1]] = I0[contour[:, 0], contour[:, 1]]
+
+
+# ------------------------------------------- Спектральный метод -------------------------------------------
+
+En = np.fft.fft2(E, norm="forward")
+En = np.fft.fftshift(En, axes=(0, 1)) #центрирование
+
+
+for z in range(1, Nz):
+
+    En *= np.exp(0.5j * (np.pi / R) ** 2 * (kx ** 2 + ky ** 2) * hz)
+    I = abs(np.fft.ifft2(np.fft.ifftshift(En, axes=(0, 1)), norm="forward")) ** 2
+
+    # P[z] = np.sum(I)
+    # print(z, P[z])
+
+    # ----------------- Определение параметров
+    max_I[z] = np.max(I)
+    contours = measure.find_contours(I, np.exp(-1) * max_I[z])
+
+    # В направлении максимума
+    # max_x, max_y = np.unravel_index(np.argmax(I), (N, N))
+    # max_xy = np.array([max_x, max_y])
+    # fw[z] = find_width_dir(contours, max_xy) * hx
+
+    # Среднее по направлениям
+    fw[z] = np.mean(find_width_dir_n(contours, directions)) * hx
+
+    # ----------------- Вывод контуров
+    if z == Nz-1:
+        rows, cols = I.shape
+        contour1 = np.zeros((rows, cols))
+
+        for contour in contours:
+            contour = np.round(contour).astype(int)
+            contour1[contour[:, 0], contour[:, 1]] = I[contour[:, 0], contour[:, 1]]
+
+        # Площадь
+        S1 = area(contours)
+
+    # --------------------------------
+
+
+# Нормировка
+fw = fw / fw[1]
+max_I = max_I / max_I[0]
+
+
+# Аналитика
+W_gauss = np.array(np.sqrt(1 + (Z ** 2)))
+I_gauss = np.array(1 / (W_gauss ** 2))
+
+
+# ------------------------------------------- Графики -------------------------------------------
+
+zr = 1
+if zr == 1:
+    plt.figure(figsize=(16, 16))
+    plt.rcParams.update({'font.size': 20})
+
+    plt.subplot(2, 1, 1)
+    plt.plot(Z[1:], fw[1:], label='Численное решение')
+    plt.plot(Z, W_gauss, label='Аналитическое решение')
+    plt.xlabel('z')
+    plt.ylabel('Полуширина пучка')
+    plt.legend()
+
+
+    plt.subplot(2, 1, 2)
+    plt.plot(Z, max_I, label='Численное решение')
+    plt.plot(Z, I_gauss, label='Аналитическое решение')
+    plt.xlabel('z')
+    plt.ylabel('Интенсивность')
+    plt.legend()
+
+    plt.tight_layout()
+
+image = 1
+if image == 1:
+    plt.figure(figsize=(16, 16))
+    plt.rcParams.update({'font.size': 20})
+
+    q1 = R
+    plt.subplot(2, 2, 1)
+    plt.imshow(I0, cmap='inferno', extent=(-R, R, -R, R))
+    # plt.title(f'z = {0}')
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.xlim(-q1, q1)
+    plt.ylim(-q1, q1)
+
+
+    #дифракция
+    q2 = R
+    plt.subplot(2, 2, 2)
+    plt.imshow(I, cmap='inferno', extent=(-R, R, -R, R))
+    # plt.title(f'z = {zn} * Zdif')
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.xlim(-q2, q2)
+    plt.ylim(-q2, q2)
+
+
+    # контура на уровне e-1 от максимума
+    q = R
+    plt.subplot(2, 2, 3)
+    plt.imshow(contour0, cmap='inferno')
+    plt.title(f'm = {m}; z = 0, S = {S0:.2f}')
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.xlim(N//2-N//q, N//2+N//q)
+    plt.ylim(N//2-N//q, N//2+N//q)
+
+
+    plt.subplot(2, 2, 4)
+    plt.imshow(contour1, cmap='inferno')
+    plt.title(f'm = {m}; z = {zn} * Zdif, S = {S1:.2f}')
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.xlim(N//2-N//q, N//2+N//q)
+    plt.ylim(N//2-N//q, N//2+N//q)
+
+    plt.tight_layout()
+
+# d3 = 0
+# if d3 == 1:
+#     fig = plt.figure(figsize=(12, 16))
+#     ax = fig.add_subplot(311, projection='3d')
+#     x_mesh, y_mesh = np.meshgrid(np.linspace(-R, R, N), np.linspace(-R, R, N))
+#
+#     ax.plot_surface(x_mesh, y_mesh, I0, cmap='viridis')
+#     # ax.set_title(f'Дифракция Лаггер-Гауссова пучка (m={m}, z={0}m)')
+#     ax.set_xlabel('x')
+#     ax.set_ylabel('y')
+#     ax.set_zlabel('Интенсивность')
+#
+#     ax = fig.add_subplot(312, projection='3d')
+#     ax.plot_surface(x_mesh, y_mesh, I, cmap='viridis')
+#     # ax.set_title(f'Дифракция Лаггер-Гауссова пучка (m={m}, z={z_dif}m)')
+#     ax.set_xlabel('x')
+#     ax.set_ylabel('y')
+#     ax.set_zlabel('Интенсивность')
+#
+#     ax = fig.add_subplot(313, projection='3d')
+#     ax.plot_surface(x_mesh, y_mesh, I-I0, cmap='viridis')
+#     # ax.set_title('Intensity Difference')
+#     ax.set_xlabel('x')
+#     ax.set_ylabel('y')
+#     ax.set_zlabel('Интенсивность')
+
+
+plt.show()
+
+print('Увеличение площади пучка:', S1/S0)
+
+end_time = time.time()
+_time = end_time - start_time
+
+print(" ", _time, "секунды")
